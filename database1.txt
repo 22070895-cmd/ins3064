@@ -1,0 +1,22 @@
+-- SQL file for PHP User Management System
+-- Database: LoginReg
+-- Table: table2
+
+-- Create database
+CREATE DATABASE IF NOT EXISTS `LoginReg` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `LoginReg`;
+
+-- Create table2 for user data
+CREATE TABLE IF NOT EXISTS `table2` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `brand` varchar(100) NOT NULL,
+  `price` varchar(65) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert sample data (optional)
+INSERT INTO `table2` (`name`, `brand`, `price`) VALUES
+('Macbook Air M1', 'Apple', '45'),
+('ThinkPad X1 Carbon Gen 10', 'Lenovo', '50'),
+('Vostro 3400', 'Dell', '63');
