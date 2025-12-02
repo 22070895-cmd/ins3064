@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Login</title>
     <link rel="stylesheet" type="text/css" href="style.css">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" 
+    integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 </head>
 <body>
     <div class="container">
@@ -30,10 +31,16 @@
                             <input
                                 type="password"
                                 name="password"
+                                id="password"
                                 class="form-control"
                                 value="<?php if(isset($_COOKIE['password'])) echo $_COOKIE['password']; ?>"
                                 required
                             >
+                        </div>
+
+                        <!-- Show password checkbox -->
+                        <div class="form-group">
+                            <input type="checkbox" onclick="togglePassword()"> Show Password
                         </div>
 
                         <div class="form-group form-check">
@@ -58,5 +65,13 @@
             </div>
         </div>
     </div>
+
+    <!-- JS for toggle password -->
+    <script>
+    function togglePassword() {
+        var x = document.getElementById("password");
+        x.type = (x.type === "password") ? "text" : "password";
+    }
+    </script>
 </body>
 </html>
