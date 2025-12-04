@@ -1,5 +1,9 @@
 <?php
-//creating a database connection - $link is a variable use for just connection class
-$link=mysqli_connect("localhost","root","") or die(mysqli_error($link));
-mysqli_select_db($link,"LoginReg") or die(mysqli_error($link));
+$conn = new mysqli("localhost", "root", "", "ins3064");
 
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$conn->set_charset("utf8mb4");
+?>

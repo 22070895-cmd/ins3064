@@ -1,23 +1,35 @@
--- SQL file for PHP User Management System
--- Database: LoginReg
--- Table: table1
+-- Database schema for the shop application
+CREATE DATABASE IF NOT EXISTS ins3064 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE ins3064;
 
--- Create database
-CREATE DATABASE IF NOT EXISTS `LoginReg` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `LoginReg`;
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin','user') NOT NULL DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- Create table1 for user data
-CREATE TABLE IF NOT EXISTS `table1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `firstname` varchar(100) NOT NULL,
-  `lastname` varchar(100) NOT NULL,
-  `email` varchar(150) NOT NULL,
-  `contact` varchar(20) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    quantity INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- Insert sample data (optional)
-INSERT INTO `table1` (`firstname`, `lastname`, `email`, `contact`) VALUES
-('John', 'Doe', 'john.doe@example.com', '1234567890'),
-('Jane', 'Smith', 'jane.smith@example.com', '0987654321'),
-('Mike', 'Johnson', 'mike.johnson@example.com', '5555555555');
+CREATE TABLE IF NOT EXISTS orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    status ENUM('pending','processing','shipped','cancelled') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_orders_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Seed at least one admin manually if needed:
+-- INSERT INTO users (username, password, role) VALUES ('admin', PASSWORD_HASH, 'admin');
+
