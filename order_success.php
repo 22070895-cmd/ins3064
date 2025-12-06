@@ -78,7 +78,8 @@ if ($check->num_rows > 0) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #56ab2f, #a8e063);
+            background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.7)),
+                        url('white.jpg') center/cover no-repeat fixed;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -88,23 +89,20 @@ if ($check->num_rows > 0) {
         .success-card {
             background: white;
             border-radius: 30px;
-            padding: 3.5rem 2.5rem;
+            padding: 2.0rem 1.5rem;
             text-align: center;
             max-width: 600px;
             width: 100%;
             box-shadow: 0 25px 60px rgba(0,0,0,0.35);
         }
         .icon-success {
-            font-size: 120px;
+            font-size: 100px;
             color: #28a745;
-            animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-30px); }
+            
+    
         }
         .title {
-            font-size: 2.8rem;
+            font-size: 2.0rem;
             font-weight: 800;
             color: #28a745;
             margin: 1.5rem 0;
@@ -114,16 +112,16 @@ if ($check->num_rows > 0) {
             color: #e91e63;
             padding: 1.5rem 2.5rem;
             border-radius: 20px;
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             font-weight: bold;
             display: inline-block;
             margin: 1.5rem 0;
             box-shadow: 0 8px 25px rgba(233, 30, 99, 0.15);
         }
         .total-price {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            color: #e91e63;
+            color: #fa0101ff;
         }
         .btn-custom {
             padding: 1rem 3rem;
