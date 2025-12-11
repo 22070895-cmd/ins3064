@@ -47,7 +47,7 @@ $total_price = 0;
     <style>
         body {
             font-family: 'Roboto', sans-serif;
-            background: linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.05)), url('white.jpg') center/cover no-repeat fixed;
+            background: linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.05)), url('assets/white.jpg') center/cover no-repeat fixed;
             min-height: 100vh;
         }
         .navbar {
