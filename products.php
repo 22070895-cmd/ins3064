@@ -45,7 +45,7 @@ if (isset($_SESSION['user_id'])) {
     <style>
         body { 
             font-family: 'Roboto', sans-serif; 
-            background: linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.1)), url('white.jpg') center/cover no-repeat fixed;
+            background: linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.1)), url('assets/white.jpg') center/cover no-repeat fixed;
             min-height: 100vh;
             margin: 0;
         }
