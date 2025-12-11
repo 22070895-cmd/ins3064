@@ -37,7 +37,7 @@ $products = $conn->query("SELECT * FROM products ORDER BY created_at DESC");
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { 
-    background: linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.05)), url('white.jpg') center/cover no-repeat fixed;
+    background: linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.05)), url('assets/white.jpg') center/cover no-repeat fixed;
 }
         .navbar { background: #1a1a1a !important; }
         .card { border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 2rem; }
