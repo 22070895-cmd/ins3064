@@ -136,7 +136,7 @@ $order_code = 'HD-' . str_pad($count, 4, '0', STR_PAD_LEFT);
             </h2>
             
             <!-- Ảnh QR của bạn -->
-            <img src="/assets/qr.jpg" alt="QR thanh toán" class="qr-img img-fluid mb-4">
+            <img src="assets/qr.jpg" alt="QR thanh toán" class="qr-img img-fluid mb-4">
             <!-- Đổi tên file nếu cần: qr.jpg, myqr.png... -->
 
             <div class="countdown mb-3" id="countdown">14:59</div>
