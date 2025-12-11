@@ -1,175 +1,215 @@
+<?php
+require_once 'auth.php';
+require_login();
+require_once 'connection.php';
+
+$user_id = $_SESSION['user_id'];
+
+// Lấy giỏ hàng + thông tin sản phẩm
+$cart = $conn->query("
+    SELECT c.*, p.name, p.price, p.image_url, p.quantity as stock 
+    FROM cart c 
+    JOIN products p ON c.product_id = p.id 
+    WHERE c.user_id = $user_id
+");
+
+if ($cart->num_rows == 0) {
+    header('Location: cart.php');
+    exit();
+}
+
+// Tính tổng tiền
+$total = 0;
+$items = [];
+while ($row = $cart->fetch_assoc()) {
+    $total += $row['price'] * $row['quantity'];
+    $items[] = $row;
+}
+
+// TẠO MÃ ĐƠN HÀNG ĐẸP: HD-0001, HD-0002...
+$count = $conn->query("SELECT COUNT(*) FROM orders")->fetch_row()[0] + 1;
+$order_code = 'HD-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+?>
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - Cửa hàng Online</title>
-
-    <!-- Google Fonts + Material Icons -->
+    <title>Thanh toán QR - Cửa hàng Online</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <style>
         body {
             font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.7)),
-                        url('apple.jpg') center/cover no-repeat fixed;
+            padding: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-
-        .login-card {
-            background: rgba(255, 255, 255, 0.96);
-            border-radius: 20px;
-            padding: 2.8rem;
-            width: 100%;
-            max-width: 440px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        .checkout-card {
+            max-width: 1000px;
+            margin: auto;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+            background: white;
         }
-
-        .login-header h2 {
-            font-weight: 700;
-            color: #1a1a1a;
+        .qr-section {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 3rem 2rem;
             text-align: center;
-            margin-bottom: 0.5rem;
-        }
-
-        .login-header p {
-            color: #555;
-            text-align: center;
-            font-size: 0.95rem;
-        }
-
-        .btn-login {
-            background: #0d6efd;
-            border: none;
-            border-radius: 14px;
-            padding: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            transition: all 0.3s;
-        }
-
-        .btn-login:hover {
-            background: #0b5ed7;
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(13, 110, 253, 0.4);
-        }
-
-        .admin-box {
-            background: linear-gradient(135deg, #fff8e1, #fff3cd);
-            border: 2px solid #ffb300;
-            border-radius: 16px;
-            padding: 1.3rem;
-            margin-top: 2rem;
-            text-align: center;
-            box-shadow: 0 8px 25px rgba(255, 179, 0, 0.2);
-        }
-
-        .btn-admin {
-            background: #ff8f00;
             color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 0.7rem 1.8rem;
+        }
+        .qr-img {
+            width: 300px;
+            height: 300px;
+            border: 16px solid white;
+            border-radius: 24px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            background: white;
+        }
+        .order-section {
+            background: white;
+            color: #333;
+            padding: 2.5rem;
+        }
+        .product-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        .product-item img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 14px;
+        }
+        .total-price {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #e91e63;
+        }
+        .order-code {
+            background: #fff3cd;
+            color: #d97706;
+            padding: 1rem 2.5rem;
+            border-radius: 16px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: inline-block;
+            margin: 1.5rem 0;
+        }
+        .btn-pay {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            font-size: 1.4rem;
+            padding: 1.2rem 4rem;
+            border-radius: 50px;
             font-weight: 600;
-            margin-top: 0.8rem;
-            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(238,90,82,0.4);
         }
-
-        .btn-admin:hover {
-            background: #f57c00;
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(245, 124, 0, 0.4);
+        .btn-pay:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(238,90,82,0.5);
         }
-
-        .form-check-input:checked {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
+        .countdown {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ff6b6b;
         }
     </style>
 </head>
 <body>
 
-<div class="login-card">
-    <div class="login-header">
-        <h2>Đăng nhập</h2>
-        <p>Chào mừng quay lại cửa hàng online</p>
-    </div>
+<div class="checkout-card">
+    <div class="row g-0">
+        <!-- CỘT TRÁI: MÃ QR -->
+        <div class="col-lg-5 qr-section">
+            <h2 class="mb-4">
+                Quét mã QR để thanh toán
+            </h2>
+            
+            <!-- Ảnh QR của bạn -->
+            <img src="assets/qr.jpg" alt="QR thanh toán" class="qr-img img-fluid mb-4">
+            <!-- Đổi tên file nếu cần: qr.jpg, myqr.png... -->
 
-    <?php if(isset($_GET['error'])): ?>
-        <div class="alert alert-danger text-center"><?php echo htmlspecialchars($_GET['error']); ?></div>
-    <?php endif; ?>
-    <?php if(isset($_GET['msg'])): ?>
-        <div class="alert alert-success text-center"><?php echo htmlspecialchars($_GET['msg']); ?></div>
-    <?php endif; ?>
+            <div class="countdown mb-3" id="countdown">14:59</div>
+            <p class="opacity-90">Mã QR sẽ hết hạn sau 15 phút</p>
 
-    <form action="validation.php" method="post">
-       <div class="mb-4">
-    <label class="form-label fw-medium d-flex align-items-center gap-2">
-        Tên đăng nhập hoặc Email Gmail
-    </label>
-    <div class="input-group input-group-lg">
-        
-        <input 
-            type="text" 
-            name="login" 
-            class="form-control" 
-            placeholder="Nhập username hoặc email" 
-            value="<?php echo isset($_COOKIE['login']) ? htmlspecialchars($_COOKIE['login']) : ''; ?>" 
-            required
-            autocomplete="username">
-    </div>
-    <div class="form-text text-success mt-2">
-        Bạn có thể đăng nhập bằng <strong>tên đăng nhập</strong> hoặc <strong>email Gmail</strong>
+            <div class="alert alert-light text-dark mt-4">
+                <strong>Lưu ý quan trọng:</strong><br>
+                Vui lòng chuyển khoản đúng nội dung:<br>
+                <div class="order-code mt-3"><?= $order_code ?></div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI: DANH SÁCH SẢN PHẨM + TỔNG TIỀN -->
+        <div class="col-lg-7 order-section">
+            <h3 class="text-primary mb-4 fw-bold">
+                Đơn hàng của bạn
+            </h3>
+
+            <div style="max-height: 400px; overflow-y: auto;">
+                <?php foreach ($items as $item): 
+                    $subtotal = $item['price'] * $item['quantity'];
+                ?>
+                    <div class="product-item">
+                        <img src="<?= htmlspecialchars($item['image_url']) ?>" 
+                             onerror="this.src='https://via.placeholder.com/80'">
+                        <div class="flex-grow-1">
+                            <h6 class="fw-bold mb-1"><?= htmlspecialchars($item['name']) ?></h6>
+                            <small class="text-muted">
+                                <?= number_format($item['price']) ?>đ × <?= $item['quantity'] ?>
+                            </small>
+                        </div>
+                        <strong class="text-danger"><?= number_format($subtotal) ?>đ</strong>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Tổng thanh toán:</h4>
+                <div class="total-price"><?= number_format($total) ?>đ</div>
+            </div>
+
+            <div class="text-center">
+                <a href="order_success.php?code=<?= $order_code ?>" 
+                   class="btn btn-pay">
+                    Tôi đã chuyển khoản xong
+                </a>
+                <p class="mt-3">
+                    <a href="cart.php" class="text-muted text-decoration-none">
+                        Quay lại giỏ hàng
+                    </a>
+                </p>
+            </div>
+        </div>
     </div>
 </div>
-        <div class="form-floating mb-3">
-            <input type="password" class="form-control form-control-lg" id="password" name="password" placeholder="Mật khẩu" required>
-            <label for="password">Mật khẩu</label>
-        </div>
 
-        <div class="form-check mb-4">
-            <input class="form-check-input" type="checkbox" id="remember" name="remember"
-                <?php echo isset($_COOKIE['username']) ? 'checked' : ''; ?>>
-            <label class="form-check-label" for="remember">Ghi nhớ đăng nhập</label>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-login w-100">
-            Đăng nhập
-        </button>
-    </form>
-
-    <div class="text-center mt-4">
-        <p>Chưa có tài khoản? <a href="register.php" class="text-primary fw-bold text-decoration-none">Đăng ký ngay</a></p>
-    </div>
-
-    <!-- Box tạo Admin đầu tiên -->
-    <?php
-    require_once 'connection.php';
-    $check = $conn->query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
-    if ($check->num_rows === 0):
-    ?>
-    <div class="admin-box">
-        <div class="d-flex justify-content-center align-items-center gap-2 text-warning fw-bold">
-            <span class="material-icons">warning_amber</span>
-            <span>Hệ thống chưa có quản trị viên</span>
-        </div>
-        <p class="mb-2 mt-2 text-muted small">Bạn cần tạo tài khoản Admin đầu tiên để quản lý hệ thống.</p>
-        <a href="register.php?admin=1" class="btn btn-admin">
-            Tạo tài khoản Admin đầu tiên
-        </a>
-    </div>
-    <?php endif; ?>
-</div>
+<!-- Đếm ngược 15 phút -->
+<script>
+let timeLeft = 15 * 60;
+const timer = document.getElementById('countdown');
+setInterval(() => {
+    if (timeLeft <= 0) {
+        timer.innerHTML = "Hết hạn!";
+        return;
+    }
+    timeLeft--;
+    const minutes = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+    const seconds = String(timeLeft % 60).padStart(2, '0');
+    timer.innerHTML = minutes + ':' + seconds;
+}, 1000);
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
