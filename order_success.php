@@ -4,67 +4,31 @@ require_login();
 require_once 'connection.php';
 
 $user_id = $_SESSION['user_id'];
-$order_code = $_GET['code'] ?? '';
 
-// Nếu không có mã đơn → quay lại giỏ
-if (!$order_code) {
+// Lấy giỏ hàng + thông tin sản phẩm
+$cart = $conn->query("
+    SELECT c.*, p.name, p.price, p.image_url, p.quantity as stock 
+    FROM cart c 
+    JOIN products p ON c.product_id = p.id 
+    WHERE c.user_id = $user_id
+");
+
+if ($cart->num_rows == 0) {
     header('Location: cart.php');
     exit();
 }
 
-// KIỂM TRA ĐƠN ĐÃ ĐƯỢC TẠO CHƯA (tránh tạo trùng)
-$check = $conn->query("SELECT id, total_amount FROM orders WHERE order_code = '$order_code' AND user_id = $user_id");
-if ($check->num_rows > 0) {
-    // Đã tạo rồi → chỉ hiển thị thông báo
-    $order = $check->fetch_assoc();
-    $total = $order['total_amount'];
-} else {
-    // TẠO ĐƠN HÀNG MỚI
-    $cart = $conn->query("
-        SELECT c.*, p.price, p.quantity as stock 
-        FROM cart c 
-        JOIN products p ON c.product_id = p.id 
-        WHERE c.user_id = $user_id
-    ");
-
-    if ($cart->num_rows == 0) {
-        header('Location: cart.php');
-        exit();
-    }
-
-    $total = 0;
-    foreach ($cart as $item) {
-        $total += $item['price'] * $item['quantity'];
-    }
-
-    $conn->autocommit(false);
-    try {
-        // 1. Tạo đơn hàng
-        $stmt = $conn->prepare("INSERT INTO orders (order_code, user_id, total_amount, status) VALUES (?, ?, ?, 'paid')");
-        $stmt->bind_param("sid", $order_code, $user_id, $total);
-        $stmt->execute();
-        $order_id = $conn->insert_id;
-        $stmt->close();
-
-        // 2. Thêm chi tiết đơn hàng + giảm tồn kho
-        foreach ($cart as $item) {
-            $stmt2 = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, ?, ?)");
-            $stmt2->bind_param("iiid", $order_id, $item['product_id'], $item['quantity'], $item['price']);
-            $stmt2->execute();
-            $stmt2->close();
-
-            $conn->query("UPDATE products SET quantity = quantity - {$item['quantity']} WHERE id = {$item['product_id']}");
-        }
-
-        // 3. XÓA GIỎ HÀNG
-        $conn->query("DELETE FROM cart WHERE user_id = $user_id");
-
-        $conn->commit();
-    } catch (Exception $e) {
-        $conn->rollback();
-        die("Lỗi hệ thống: " . $e->getMessage());
-    }
+// Tính tổng tiền
+$total = 0;
+$items = [];
+while ($row = $cart->fetch_assoc()) {
+    $total += $row['price'] * $row['quantity'];
+    $items[] = $row;
 }
+
+// TẠO MÃ ĐƠN HÀNG ĐẸP: HD-0001, HD-0002...
+$count = $conn->query("SELECT COUNT(*) FROM orders")->fetch_row()[0] + 1;
+$order_code = 'HD-' . str_pad($count, 4, '0', STR_PAD_LEFT);
 ?>
 
 <!DOCTYPE html>
@@ -72,95 +36,181 @@ if ($check->num_rows > 0) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thanh toán thành công!</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <title>Thanh toán QR - Cửa hàng Online</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.7)),
-                        url('white.jpg') center/cover no-repeat fixed;
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            padding: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
         }
-        .success-card {
+        .checkout-card {
+            max-width: 1000px;
+            margin: auto;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
             background: white;
-            border-radius: 30px;
-            padding: 2.0rem 1.5rem;
+        }
+        .qr-section {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 3rem 2rem;
             text-align: center;
-            max-width: 600px;
-            width: 100%;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+            color: white;
         }
-        .icon-success {
-            font-size: 100px;
-            color: #28a745;
-            
-    
+        .qr-img {
+            width: 300px;
+            height: 300px;
+            border: 16px solid white;
+            border-radius: 24px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            background: white;
         }
-        .title {
-            font-size: 2.0rem;
+        .order-section {
+            background: white;
+            color: #333;
+            padding: 2.5rem;
+        }
+        .product-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        .product-item img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 14px;
+        }
+        .total-price {
+            font-size: 2.5rem;
             font-weight: 800;
-            color: #28a745;
-            margin: 1.5rem 0;
-        }
-        .order-code-box {
-            background: #fff0f0;
             color: #e91e63;
-            padding: 1.5rem 2.5rem;
-            border-radius: 20px;
+        }
+        .order-code {
+            background: #fff3cd;
+            color: #d97706;
+            padding: 1rem 2.5rem;
+            border-radius: 16px;
             font-size: 1.5rem;
             font-weight: bold;
             display: inline-block;
             margin: 1.5rem 0;
-            box-shadow: 0 8px 25px rgba(233, 30, 99, 0.15);
         }
-        .total-price {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #fa0101ff;
-        }
-        .btn-custom {
-            padding: 1rem 3rem;
+        .btn-pay {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            font-size: 1.4rem;
+            padding: 1.2rem 4rem;
             border-radius: 50px;
             font-weight: 600;
-            font-size: 1.1rem;
-            margin: 0.8rem;
+            box-shadow: 0 10px 30px rgba(238,90,82,0.4);
+        }
+        .btn-pay:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(238,90,82,0.5);
+        }
+        .countdown {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ff6b6b;
         }
     </style>
 </head>
 <body>
-<div class="success-card">
-    <span class="material-icons icon-success">check_circle</span>
-    <h1 class="title">Thanh toán thành công!</h1>
-    <p class="fs-4 text-muted mb-4">Cảm ơn bạn đã tin tưởng và mua sắm tại cửa hàng!</p>
 
-    <div class="order-code-box">
-        Mã đơn hàng của bạn:<br>
-        <strong class="fs-3"><?= htmlspecialchars($order_code) ?></strong>
-    </div>
+<div class="checkout-card">
+    <div class="row g-0">
+        <!-- CỘT TRÁI: MÃ QR -->
+        <div class="col-lg-5 qr-section">
+            <h2 class="mb-4">
+                Quét mã QR để thanh toán
+            </h2>
+            
+            <!-- Ảnh QR của bạn -->
+            <img src="assets/qr.jpg" alt="QR thanh toán" class="qr-img img-fluid mb-4">
+            <!-- Đổi tên file nếu cần: qr.jpg, myqr.png... -->
 
-    <p class="total-price">
-        Tổng tiền thanh toán: <strong><?= number_format($total) ?>đ</strong>
-    </p>
+            <div class="countdown mb-3" id="countdown">14:59</div>
+            <p class="opacity-90">Mã QR sẽ hết hạn sau 15 phút</p>
 
-    <p class="text-muted fs-5">
-        Đơn hàng đã được ghi nhận và sẽ được xử lý sớm nhất có thể!
-    </p>
+            <div class="alert alert-light text-dark mt-4">
+                <strong>Lưu ý quan trọng:</strong><br>
+                Vui lòng chuyển khoản đúng nội dung:<br>
+                <div class="order-code mt-3"><?= $order_code ?></div>
+            </div>
+        </div>
 
-    <div class="mt-5">
-        <a href="products.php" class="btn btn-primary btn-custom btn-lg">
-            Tiếp tục mua sắm
-        </a>
-        <?php if (is_admin()): ?>
-            <a href="home.php" class="btn btn-outline-success btn-custom btn-lg">
-                Vào trang Admin
-            </a>
-        <?php endif; ?>
+        <!-- CỘT PHẢI: DANH SÁCH SẢN PHẨM + TỔNG TIỀN -->
+        <div class="col-lg-7 order-section">
+            <h3 class="text-primary mb-4 fw-bold">
+                Đơn hàng của bạn
+            </h3>
+
+            <div style="max-height: 400px; overflow-y: auto;">
+                <?php foreach ($items as $item): 
+                    $subtotal = $item['price'] * $item['quantity'];
+                ?>
+                    <div class="product-item">
+                        <img src="<?= htmlspecialchars($item['image_url']) ?>" 
+                             onerror="this.src='https://via.placeholder.com/80'">
+                        <div class="flex-grow-1">
+                            <h6 class="fw-bold mb-1"><?= htmlspecialchars($item['name']) ?></h6>
+                            <small class="text-muted">
+                                <?= number_format($item['price']) ?>đ × <?= $item['quantity'] ?>
+                            </small>
+                        </div>
+                        <strong class="text-danger"><?= number_format($subtotal) ?>đ</strong>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Tổng thanh toán:</h4>
+                <div class="total-price"><?= number_format($total) ?>đ</div>
+            </div>
+
+            <div class="text-center">
+                <a href="order_success.php?code=<?= $order_code ?>" 
+                   class="btn btn-pay">
+                    Tôi đã chuyển khoản xong
+                </a>
+                <p class="mt-3">
+                    <a href="cart.php" class="text-muted text-decoration-none">
+                        Quay lại giỏ hàng
+                    </a>
+                </p>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Đếm ngược 15 phút -->
+<script>
+let timeLeft = 15 * 60;
+const timer = document.getElementById('countdown');
+setInterval(() => {
+    if (timeLeft <= 0) {
+        timer.innerHTML = "Hết hạn!";
+        return;
+    }
+    timeLeft--;
+    const minutes = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+    const seconds = String(timeLeft % 60).padStart(2, '0');
+    timer.innerHTML = minutes + ':' + seconds;
+}, 1000);
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
