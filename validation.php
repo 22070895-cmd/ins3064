@@ -1,40 +1,60 @@
 <?php
 session_start();
-require_once 'connection.php';
 
-if ($_POST['login'] && $_POST['password']) {
-    $login = trim($_POST['login']);
-    $password = $_POST['password'];
+/*----------------------------------------------------
+  1. KẾT NỐI DATABASE
+----------------------------------------------------*/
+$con = mysqli_connect('localhost', 'root', '', 'login_1');
+if (!$con) {
+    die('Connection failed: ' . mysqli_connect_error());
+}
 
-    // Kiểm tra login là email hay username
-    if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
-        $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+/*----------------------------------------------------
+  2. NHẬN DỮ LIỆU TỪ FORM
+----------------------------------------------------*/
+if (!isset($_POST['user'], $_POST['password'])) {
+    header('location:login.php');
+    exit();
+}
+
+$name = mysqli_real_escape_string($con, $_POST['user']);
+$pass = mysqli_real_escape_string($con, $_POST['password']);
+$remember = isset($_POST['remember']); // checkbox remember
+
+/*----------------------------------------------------
+  3. CHECK USER TRONG DATABASE
+----------------------------------------------------*/
+$sql = "SELECT * FROM table3 WHERE username='$name' AND password='$pass'";
+$result = mysqli_query($con, $sql);
+$num = mysqli_num_rows($result);
+
+/*----------------------------------------------------
+  4. ĐĂNG NHẬP THÀNH CÔNG
+----------------------------------------------------*/
+if ($num == 1) {
+
+    // lưu session
+    $_SESSION['username'] = $name;
+
+    // Nếu chọn Remember me -> set cookie 30 ngày
+    if ($remember) {
+        setcookie("username", $name, time() + (86400 * 30), "/");
+        setcookie("password", $pass, time() + (86400 * 30), "/");
     } else {
-        $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
+        // Nếu KHÔNG chọn thì xóa cookie
+        setcookie("username", "", time() - 3600, "/");
+        setcookie("password", "", time() - 3600, "/");
     }
-    $stmt->bind_param("s", $login);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
-    $stmt->close();
 
-    if ($user && password_verify($password, $user['password'])) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['role'] = $user['role'];
+    header('location:home.php');
+    exit();
+}
 
-        if ($user['role'] === 'admin') {
-            header("Location: home.php");
-        } else {
-            header("Location: products.php");
-        }
-        exit();
-    } else {
-        header("Location: login.php?error=Sai+tên+đăng+nhập+hoặc+mật+khẩu");
-        exit();
-    }
-} else {
-    header("Location: login.php?error=Vui+lòng+nhập+đầy+đủ");
+/*----------------------------------------------------
+  5. ĐĂNG NHẬP THẤT BẠI
+----------------------------------------------------*/
+else {
+    header('location:login.php?error=1');
     exit();
 }
 ?>
